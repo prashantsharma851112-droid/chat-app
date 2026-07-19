@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatSpace</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="chat-page">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="my-profile">
+          <label for="avatar-upload" class="my-avatar-wrap">
+            <img id="my-avatar" class="my-avatar" src="" alt="">
+            <span class="avatar-edit-badge">✎</span>
+          </label>
+          <input type="file" id="avatar-upload" accept="image/*" class="hidden">
+          <span id="welcome-user"></span>
+        </div>
+        <button id="logout-btn">Logout</button>
+      </div>
+
+      <div class="sidebar-tabs">
+        <button id="tab-direct" class="sidebar-tab active">Direct</button>
+        <button id="tab-groups" class="sidebar-tab">Groups</button>
+      </div>
+
+      <!-- Direct messages list -->
+      <div id="direct-list" class="conversation-list">
+        <div class="search-box">
+          <input type="text" id="user-search" placeholder="Search by name or username...">
+        </div>
+        <div id="search-results"></div>
+        <div id="recent-chats"></div>
+      </div>
+
+      <!-- Groups list -->
+      <div id="groups-list" class="conversation-list hidden">
+        <button id="create-group-btn" class="new-group-btn">+ New Group</button>
+        <div id="groups-items"></div>
+      </div>
+    </div>
+
+    <!-- Main chat window -->
+    <div class="chat-window">
+      <div id="chat-header" class="chat-header">
+        <span id="chat-title">Select a conversation</span>
+        <span id="typing-indicator" class="typing-indicator"></span>
+      </div>
+
+      <div id="messages" class="messages-area">
+        <p class="empty-state">Pick someone from the sidebar to start chatting.</p>
+      </div>
+
+      <form id="message-form" class="message-form hidden">
+        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off" required>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Group modal -->
+  <div id="group-modal" class="modal hidden">
+    <div class="modal-box">
+      <h3>Create a Group</h3>
+      <input type="text" id="group-name-input" placeholder="Group name" required>
+      <div id="group-members-list" class="group-members-list"></div>
+      <div class="modal-actions">
+        <button id="group-cancel-btn" class="btn-secondary">Cancel</button>
+        <button id="group-create-btn" class="btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="chat.js"></script>
+</body>
+</html>
