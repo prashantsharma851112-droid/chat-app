@@ -1,4 +1,4 @@
-const API_URL = 'https://chat-app-pmsa.onrender.com';
+const API_URL = 'https://chat-app-pmsa.onrender.com/api/auth';
 
 if (localStorage.getItem('token')) {
   window.location.href = 'chat.html';
