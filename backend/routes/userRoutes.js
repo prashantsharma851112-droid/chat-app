@@ -16,6 +16,34 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// UPDATE my name/username (Settings panel)
+router.put('/me', async (req, res) => {
+  try {
+    const { name, username } = req.body;
+    const updates = {};
+
+    if (name) updates.name = name.trim();
+
+    if (username) {
+      const cleaned = username.toLowerCase().trim();
+      if (!/^[a-z0-9_]{3,20}$/.test(cleaned)) {
+        return res.status(400).json({ error: 'Username must be 3-20 characters: letters, numbers, underscores only' });
+      }
+      const existing = await User.findOne({ username: cleaned, _id: { $ne: req.userId } });
+      if (existing) {
+        return res.status(400).json({ error: 'This username is already taken' });
+      }
+      updates.username = cleaned;
+    }
+
+    const user = await User.findByIdAndUpdate(req.userId, updates, { new: true })
+      .select('name username email avatar');
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // UPDATE my avatar (body: { avatar: "data:image/png;base64,...." })
 router.put('/me/avatar', async (req, res) => {
   try {
@@ -83,11 +111,22 @@ router.get('/recent', async (req, res) => {
     }
 
     const users = await User.find({ _id: { $in: otherIds } }).select('name username avatar');
-    // Preserve the recency order from above (Mongo's $in doesn't guarantee order)
     const usersById = Object.fromEntries(users.map(u => [u._id.toString(), u]));
     const ordered = otherIds.map(id => usersById[id]).filter(Boolean);
 
-    res.json(ordered);
+    // For each conversation, count how many of THEIR messages to me are still unseen.
+    // This powers the unread badge in the sidebar.
+    const withUnread = await Promise.all(ordered.map(async (u) => {
+      const unreadCount = await Message.countDocuments({
+        type: 'private',
+        sender: u._id,
+        recipient: myId,
+        seen: false
+      });
+      return { ...u.toObject(), unreadCount };
+    }));
+
+    res.json(withUnread);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

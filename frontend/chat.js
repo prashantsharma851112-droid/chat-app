@@ -1,3 +1,4 @@
+// IMPORTANT: change these once you deploy the backend
 const API_BASE = 'https://chat-app-pmsa.onrender.com/api';
 const SOCKET_URL = 'https://chat-app-pmsa.onrender.com';
 
@@ -42,23 +43,59 @@ document.getElementById('avatar-upload').addEventListener('change', async (e) =>
   const file = e.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const base64 = reader.result;
+  try {
+    // Resize the image before uploading - phone camera photos can be 5-10MB,
+    // which was silently failing. We shrink to a small square thumbnail instead.
+    const resizedBase64 = await resizeImageToBase64(file, 200);
+
     const res = await fetch(`${API_BASE}/users/me/avatar`, {
       method: 'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({ avatar: base64 })
+      body: JSON.stringify({ avatar: resizedBase64 })
     });
+
     if (res.ok) {
       const user = await res.json();
       myAvatar = user.avatar;
       localStorage.setItem('userAvatar', myAvatar);
       renderMyAvatar();
+      loadRecentChats();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Could not upload picture');
     }
-  };
-  reader.readAsDataURL(file); // converts the image file to a base64 string
+  } catch (err) {
+    alert('Could not process that image. Try a different file.');
+  }
 });
+
+// Resizes/compresses an image file down to a small square JPEG, returned as a base64 data URL.
+function resizeImageToBase64(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+
+        // Crop to a centered square, then draw scaled down - keeps faces centered
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // ---------- Socket connection ----------
 const socket = io(SOCKET_URL, { auth: { token } });
@@ -159,13 +196,15 @@ function renderRecentChats() {
   recentChatsEl.innerHTML = recentChats.map(u => {
     const isOnline = onlineUserIds.includes(u._id);
     const isActive = currentChat?.type === 'private' && currentChat.userId === u._id;
+    const unread = u.unreadCount > 0;
     return `
       <div class="conversation-item ${isActive ? 'active' : ''}" onclick='openPrivateChat(${JSON.stringify(u._id)}, ${JSON.stringify(u.name)}, ${JSON.stringify(u.avatar || '')})'>
         <span class="avatar-dot-wrap">${avatarHtml(u, 'sm')}<span class="status-dot ${isOnline ? 'online' : ''}"></span></span>
         <div class="conv-text">
-          <div class="conv-name">${u.name}</div>
+          <div class="conv-name ${unread ? 'unread' : ''}">${u.name}</div>
           <div class="conv-sub">@${u.username}</div>
         </div>
+        ${unread ? `<span class="unread-badge">${u.unreadCount}</span>` : ''}
       </div>
     `;
   }).join('');
@@ -280,23 +319,56 @@ messageForm.addEventListener('submit', (e) => {
   messageInput.value = '';
 });
 
+// ---------- Toast notifications ----------
+// Shows a small popup when a message arrives from a conversation you're
+// NOT currently looking at - this is how you find out someone messaged you
+// even if you never searched for them yourself.
+const toastContainer = document.getElementById('toast-container');
+
+function showToast(title, body) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => toast.classList.add('toast-show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('toast-show');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 // ---------- Receiving messages in real time ----------
 socket.on('private-message', (msg) => {
-  const otherId = (msg.sender._id || msg.sender) === myUserId ? msg.recipient : (msg.sender._id || msg.sender);
-  if (currentChat?.type === 'private' && currentChat.userId === otherId) {
+  const senderId = msg.sender._id || msg.sender;
+  const otherId = senderId === myUserId ? msg.recipient : senderId;
+  const isViewingThisChat = currentChat?.type === 'private' && currentChat.userId === otherId;
+
+  if (isViewingThisChat) {
     appendMessage(msg);
-    // If the message just arrived from the person I'm currently looking at, mark it seen immediately
-    if ((msg.sender._id || msg.sender) !== myUserId) {
+    if (senderId !== myUserId) {
       socket.emit('mark-seen', { otherUserId: otherId });
     }
+  } else if (senderId !== myUserId) {
+    // A message arrived from someone whose chat isn't open right now -
+    // this covers the case where THEY searched for YOUR username and
+    // messaged you first, without you having done anything.
+    showToast(`New message from ${msg.sender.name || 'Someone'}`, msg.content);
   }
+
   loadRecentChats();
 });
 
 socket.on('room-message', (msg) => {
-  if (currentChat?.type === 'group' && currentChat.roomId === msg.room) {
+  const isViewingThisRoom = currentChat?.type === 'group' && currentChat.roomId === msg.room;
+  const senderId = msg.sender._id || msg.sender;
+
+  if (isViewingThisRoom) {
     appendMessage(msg);
     socket.emit('mark-seen-room', { roomId: msg.room });
+  } else if (senderId !== myUserId) {
+    const room = allRooms.find(r => r._id === msg.room);
+    showToast(`New message in ${room ? room.name : 'a group'}`, `${msg.sender.name || 'Someone'}: ${msg.content}`);
   }
 });
 
@@ -392,6 +464,82 @@ groupCreateBtn.addEventListener('click', async () => {
 // Expose functions used by inline onclick handlers in the rendered HTML
 window.openPrivateChat = openPrivateChat;
 window.openGroupChat = openGroupChat;
+
+// ---------- Settings modal (edit name/username, theme, logout) ----------
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsName = document.getElementById('settings-name');
+const settingsUsername = document.getElementById('settings-username');
+const settingsError = document.getElementById('settings-error');
+const settingsSaveBtn = document.getElementById('settings-save-btn');
+const settingsLogoutBtn = document.getElementById('settings-logout-btn');
+const themeLightBtn = document.getElementById('theme-light-btn');
+const themeDarkBtn = document.getElementById('theme-dark-btn');
+
+settingsBtn.addEventListener('click', () => {
+  settingsName.value = myUserName || '';
+  settingsUsername.value = myUsername || '';
+  settingsError.textContent = '';
+  settingsModal.classList.remove('hidden');
+});
+
+// Clicking the dark overlay (the modal itself, not the box) closes it
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.classList.add('hidden');
+});
+
+settingsSaveBtn.addEventListener('click', async () => {
+  settingsError.textContent = '';
+  const name = settingsName.value.trim();
+  const username = settingsUsername.value.trim();
+
+  if (!name || !username) {
+    settingsError.textContent = 'Name and username cannot be empty.';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/users/me`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ name, username })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      settingsError.textContent = data.error || 'Could not save changes.';
+      return;
+    }
+
+    // Update everything that displays my name/username, without needing a page reload
+    localStorage.setItem('userName', data.name);
+    localStorage.setItem('userUsername', data.username);
+    document.getElementById('welcome-user').textContent = `${data.name} · @${data.username}`;
+    settingsModal.classList.add('hidden');
+  } catch (err) {
+    settingsError.textContent = 'Could not reach the server.';
+  }
+});
+
+settingsLogoutBtn.addEventListener('click', () => {
+  localStorage.clear();
+  window.location.href = 'login.html';
+});
+
+// ---------- Theme (light/dark) ----------
+// Applied by adding/removing a class on <body>; CSS variables in style.css
+// change automatically based on that class. Persisted so it survives reloads.
+function applyTheme(theme) {
+  document.body.classList.toggle('theme-dark', theme === 'dark');
+  themeLightBtn.classList.toggle('active', theme === 'light');
+  themeDarkBtn.classList.toggle('active', theme === 'dark');
+  localStorage.setItem('theme', theme);
+}
+
+themeLightBtn.addEventListener('click', () => applyTheme('light'));
+themeDarkBtn.addEventListener('click', () => applyTheme('dark'));
+
+applyTheme(localStorage.getItem('theme') || 'light');
 
 // ---------- Initial load ----------
 loadRecentChats();

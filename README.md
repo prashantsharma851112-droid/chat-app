@@ -4,9 +4,14 @@ A full-stack real-time chat application supporting both 1-on-1 direct messages a
 
 ## Features
 - JWT-based authentication (register/login with email + password)
+- **Unique usernames** — every user has a unique handle (like `@prashant_07`), separate from their display name, so duplicate names never collide
 - **Real-time messaging** via Socket.io — no page refresh needed
 - 1-on-1 direct messages between any two registered users
 - Group chat rooms — create a group, add members, chat together
+- **Search-based user discovery** — no user list is shown by default; you search by name or username to start a new conversation (privacy-friendly, and scales better than listing everyone)
+- **Recent conversations list** — the Direct tab defaults to showing people you've already chatted with
+- **Profile pictures** — upload an avatar (stored as base64 in MongoDB); falls back to colored initials if none is set
+- **Read receipts ("seen" tracking)** — 1-on-1 messages show "Sent" vs "Seen"; group messages show how many members have seen them, updated in real time
 - Message history persisted in MongoDB (loads past messages when you open a chat)
 - Online/offline status indicator
 - "Typing..." indicator

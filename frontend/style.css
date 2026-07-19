@@ -19,10 +19,121 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+[data-theme="dark"] {
+  --ink: #EDEDE8;
+  --panel: #0F2A24;
+  --panel-light: #163832;
+  --paper: #14181A;
+  --card: #1D2325;
+  --accent: #1FA593;
+  --accent-dark: #17796B;
+  --accent-soft: #1C3532;
+  --high: #E0574A;
+  --online: #3FBE7A;
+  --border: #2C3335;
+  --text: #E7E7E2;
+  --text-muted: #8B948F;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font-body); background: var(--paper); color: var(--text); -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-body); background: var(--paper); color: var(--text); -webkit-font-smoothing: antialiased; transition: background 0.2s ease, color 0.2s ease; }
 .hidden { display: none !important; }
 button { font-family: var(--font-body); cursor: pointer; }
+
+/* ============ DARK THEME ============ */
+/* Toggling this class on <body> swaps every CSS variable that matters. */
+body.theme-dark {
+  --paper: #14201C;
+  --card: #1B2B26;
+  --border: #2C3D37;
+  --text: #E9F0ED;
+  --text-muted: #93A39D;
+  --accent-soft: #1D4A42;
+  --ink: #E9F0ED;
+}
+body.theme-dark .auth-tab.active,
+body.theme-dark .sidebar-tab.active { color: var(--panel); }
+body.theme-dark .message-bubble.them { background: var(--card); }
+
+/* ============ ICON BUTTON (settings gear) ============ */
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ============ TOAST NOTIFICATIONS ============ */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+}
+
+.toast {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 12px 16px;
+  border-radius: 10px;
+  max-width: 280px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.25s ease;
+}
+.toast.toast-show { opacity: 1; transform: translateX(0); }
+.toast-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+.toast-body { font-size: 12px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============ UNREAD BADGE ============ */
+.conv-name.unread { font-weight: 700; }
+.unread-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+
+/* ============ SETTINGS MODAL ============ */
+.settings-section { display: flex; flex-direction: column; gap: 6px; }
+.settings-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.settings-section input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--paper);
+  color: var(--text);
+}
+
+.theme-row { flex-direction: row; align-items: center; justify-content: space-between; }
+.theme-toggle { display: flex; gap: 6px; }
+.theme-btn {
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--text-muted);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.theme-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
 /* ============ AUTH PAGE ============ */
 .auth-page { min-height: 100vh; display: flex; }
@@ -187,7 +298,7 @@ button { font-family: var(--font-body); cursor: pointer; }
   background: var(--paper);
 }
 
-.conv-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.conv-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .conv-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 
@@ -206,6 +317,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 .conversation-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;

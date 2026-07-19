@@ -1,3 +1,4 @@
+// IMPORTANT: change this once you deploy the backend (same as in the Task Manager project)
 const API_URL = 'https://chat-app-pmsa.onrender.com/api/auth';
 
 if (localStorage.getItem('token')) {
