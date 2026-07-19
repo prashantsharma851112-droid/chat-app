@@ -1,6 +1,5 @@
-// IMPORTANT: change these once you deploy the backend
-const API_BASE = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+const API_BASE = 'https://chat-app-pmsa.onrender.com/api';
+const SOCKET_URL = 'https://chat-app-pmsa.onrender.com';
 
 const token = localStorage.getItem('token');
 const myUserId = localStorage.getItem('userId');
